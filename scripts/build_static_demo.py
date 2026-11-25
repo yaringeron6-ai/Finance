@@ -16,14 +16,15 @@ sys.path.insert(0, str(ROOT))
 
 from radar.connectors import REGISTRY  # noqa: E402
 from radar.engine import Settings, analyze  # noqa: E402
-from radar.normalize import normalize  # noqa: E402
-from radar.synthetic import COMPANY_NAME, DEMO_TARGETS, demo_trial_balance  # noqa: E402
+from radar.synthetic import COMPANY_NAME, DEMO_TARGETS, demo_transactions  # noqa: E402
+from radar.transactions import normalize_transactions  # noqa: E402
 
 
 def build(out: Path) -> None:
     html = (ROOT / "radar/web/static/index.html").read_text(encoding="utf-8")
-    result = normalize(demo_trial_balance())
-    report = analyze(result.ledger, Settings(targets=DEMO_TARGETS), company=COMPANY_NAME, warnings=result.warnings)
+    result = normalize_transactions(demo_transactions())
+    report = analyze(result.ledger, Settings(targets=DEMO_TARGETS), company=COMPANY_NAME,
+                     warnings=result.warnings, lines=result.lines)
     connectors = [vars(c.info) for c in REGISTRY]
 
     style = re.search(r"<style>.*?</style>", html, re.S).group(0)
@@ -32,8 +33,8 @@ def build(out: Path) -> None:
     # The upload card becomes a note: this page is the demo only.
     body = re.sub(
         r'<section class="card upload">.*?</section>',
-        '<section class="card upload"><div class="warn">זו גרסת תצוגה עם נתוני הדמו של חברה בדויה. '
-        'העלאת קובץ אמיתי עובדת באפליקציה המותקנת.</div>'
+        '<section class="card upload"><div class="warn">זו גרסת תצוגה עם כרטסת דמו של חברה בדויה. '
+        'העלאת כרטסת או מאזן בוחן אמיתיים, והורדת הסקירה ל-Excel, עובדות באפליקציה המותקנת.</div>'
         '<div class="row"><span class="muted">מקורות נתונים:</span><div class="chips" id="connectors"></div></div>'
         '<div id="error" class="error hidden"></div><input type="file" id="file" hidden>'
         '<input type="file" id="targets" hidden><button id="run" hidden></button>'

@@ -13,7 +13,9 @@ from .model import (
     ACCRUAL,
     ADVANCE,
     ASSET,
+    BANK,
     CLEARING,
+    CUSTOMER,
     COGS,
     EQUITY,
     EXPENSE,
@@ -23,6 +25,7 @@ from .model import (
     LIABILITY,
     PROVISION,
     REVENUE,
+    SUPPLIER,
 )
 
 _KIND_RULES: list[tuple[str, str]] = [
@@ -44,6 +47,9 @@ _GROUP_RULES: list[tuple[str, str]] = [
     (ADVANCE, r"מקדמ|advance|prepayment"),
     (ACCRUAL, r"חופש|הבראה|פיצוי|vacation|severance|holiday"),
     (PROVISION, r"הפרש|provision"),
+    (CUSTOMER, r"לקוח|חייבים|customer|receivable"),
+    (SUPPLIER, r"ספק|זכאים|supplier|payable|vendor"),
+    (BANK, r"בנק|קופה|עו\"?ש|bank|cash"),
 ]
 
 _KIND_ALIASES = {
@@ -60,6 +66,9 @@ _GROUP_ALIASES = {
     "מקדמות": ADVANCE, "מקדמה": ADVANCE,
     "הפרשה": PROVISION, "הפרשות": PROVISION,
     "הפרשה שוטפת": ACCRUAL,
+    "לקוחות": CUSTOMER, "לקוח": CUSTOMER, "customers": CUSTOMER,
+    "ספקים": SUPPLIER, "ספק": SUPPLIER, "suppliers": SUPPLIER,
+    "בנק": BANK, "בנקים": BANK, "קופה": BANK,
     "כללי": GENERAL,
 }
 

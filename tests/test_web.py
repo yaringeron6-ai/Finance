@@ -18,8 +18,31 @@ def test_demo():
     assert res.status_code == 200
     body = res.json()
     assert body["months"] == 36
-    assert len(body["historical"]) == 5
+    assert body["source"] == "transactions"
+    assert len(body["historical"]) == 6
     assert len(body["alerts"]) == 3
+    assert body["review"]["counts"]["issue"] == 4
+
+
+def test_review_excel_download():
+    report_id = client.get("/api/demo").json()["id"]
+    res = client.get(f"/api/review/{report_id}.xlsx")
+    assert res.status_code == 200
+    from openpyxl import load_workbook
+    ws = load_workbook(io.BytesIO(res.content)).active
+    assert ws.sheet_view.rightToLeft
+    header = [c.value for c in ws[3]]
+    assert header[0] == "כרטיס" and "הסבר" in header and "נבדק על ידי" in header
+    assert ws.max_row == 3 + 8  # one row per balance-sheet account
+
+
+def test_upload_ledger_lines():
+    csv = client.get("/api/demo/transactions").content
+    res = client.post("/api/analyze", files={"file": ("lines.csv", io.BytesIO(csv), "text/csv")})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["source"] == "transactions"
+    assert {f["account"] for f in body["historical"] if f["kind"] == "old_items"} == {"1200", "1300", "2200", "2400"}
 
 
 def test_upload_demo_file_with_targets():

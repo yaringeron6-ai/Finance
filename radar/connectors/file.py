@@ -13,7 +13,7 @@ class FileConnector(Connector):
         key="file",
         display_name="קובץ Excel / CSV",
         status="available",
-        description="ייצוא מאזן בוחן חודשי מכל תוכנת הנהלת חשבונות.",
+        description="כרטסת או מאזן בוחן חודשי, מכל תוכנת הנהלת חשבונות.",
         settings=["file"],
     )
 

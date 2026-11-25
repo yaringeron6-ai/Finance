@@ -35,9 +35,13 @@ CLEARING = "clearing"    # חשבונות מעבר / ביניים / לבירור
 ADVANCE = "advance"      # מקדמות: should be cleared against an invoice
 PROVISION = "provision"  # הפרשות חד-פעמיות: should be used or released
 ACCRUAL = "accrual"      # הפרשות שוטפות (חופשה, פיצויים): expected to stay open
+CUSTOMER = "customer"    # לקוחות: open invoices are aged
+SUPPLIER = "supplier"    # ספקים: open invoices are aged
+BANK = "bank"            # בנק / קופה: reconciled against statements, not by flux
 GENERAL = "general"
 
-GROUPS = (CLEARING, ADVANCE, PROVISION, ACCRUAL, GENERAL)
+GROUPS = (CLEARING, ADVANCE, PROVISION, ACCRUAL, CUSTOMER, SUPPLIER, BANK, GENERAL)
+OPEN_ITEM_GROUPS = (CLEARING, ADVANCE, PROVISION, CUSTOMER, SUPPLIER)
 SHOULD_CLEAR_GROUPS = (CLEARING, ADVANCE, PROVISION)
 
 LEDGER_COLUMNS = ["account", "name", "kind", "group", "period", "movement", "balance"]
