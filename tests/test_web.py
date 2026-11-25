@@ -10,7 +10,7 @@ client = TestClient(app)
 def test_index_served():
     res = client.get("/")
     assert res.status_code == 200
-    assert "מכ\"ם פיננסי" in res.text
+    assert "Hello Fin" in res.text
 
 
 def test_demo():
@@ -79,3 +79,17 @@ def test_password_required_when_set(monkeypatch):
     bad = base64.b64encode(b"user:nope").decode()
     assert client.get("/", headers={"Authorization": f"Basic {good}"}).status_code == 200
     assert client.get("/", headers={"Authorization": f"Basic {bad}"}).status_code == 401
+
+
+def test_english():
+    body = client.get("/api/demo?lang=en").json()
+    assert body["lang"] == "en"
+    assert body["company"] == "Example Co. Ltd."
+    titles = " ".join(f["title"] for f in body["historical"] + body["alerts"])
+    assert "open for over a year" in titles
+    assert not any("֐" <= ch <= "׿" for ch in titles)
+    res = client.post("/api/analyze?lang=en", files={"file": ("x.csv", io.BytesIO(b"a,b\n1,2\n"), "text/csv")})
+    assert res.status_code == 400 and "account" in res.json()["detail"]
+    from openpyxl import load_workbook
+    ws = load_workbook(io.BytesIO(client.get(f"/api/review/{body['id']}.xlsx").content)).active
+    assert not ws.sheet_view.rightToLeft and ws["A3"].value == "Account"

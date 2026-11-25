@@ -12,6 +12,7 @@ from itertools import combinations
 
 import numpy as np
 
+from ..i18n import L
 from ..model import ALERT, PNL_KINDS, REVENUE, Finding
 from .common import accounts, evidence, ils, pct, period_label
 
@@ -62,22 +63,28 @@ def find_relations(ledger, recent: int = 3, min_history: int = 12, min_corr: flo
 
         ratio_series = y_acc["activity"] / x_acc["activity"] * 100
         recent_periods = list(ratio_series.index[-recent:])
-        direction = "יותר" if excess > 0 else "פחות"
+        more = excess > 0
+        now, usual, x_name, y_name = pct(ratio_recent.mean()), pct(mean), x_acc["name"], y_acc["name"]
         findings.append(Finding(
             section=ALERT,
             kind="relation_break",
             account=y_acc["code"],
-            account_name=y_acc["name"],
-            title=(f"{y_acc['name']}: {pct(ratio_recent.mean())} מ{x_acc['name']} "
-                   f"לעומת {pct(mean)} בדרך כלל"),
-            reason=(f"ב-{len(hx)} חודשים {y_acc['name']} נע יחד עם {x_acc['name']} (מתאם {corr:.2f}) "
-                    f"ועמד בממוצע על {pct(mean)} ממנו. ב-{recent} החודשים האחרונים היחס היה {pct(ratio_recent.mean())}, "
-                    f"כ-{ils(abs(excess))} {direction} ממה שהיחס הרגיל היה נותן."),
-            check="לבדוק אם השתנו מחירי ספקים, תמהיל המוצרים או סיווג התנועות בין שני הכרטיסים.",
+            account_name=y_name,
+            title=L(f"{y_name}: {now} מ{x_name} לעומת {usual} בדרך כלל",
+                    f"{y_name}: {now} of {x_name} against a usual {usual}"),
+            reason=L(f"ב-{len(hx)} חודשים {y_name} נע יחד עם {x_name} (מתאם {corr:.2f}) ועמד בממוצע על {usual} ממנו. "
+                     f"ב-{recent} החודשים האחרונים היחס היה {now}, "
+                     f"כ-{ils(abs(excess))} {'יותר' if more else 'פחות'} ממה שהיחס הרגיל היה נותן.",
+                     f"Over {len(hx)} months {y_name} moved with {x_name} (correlation {corr:.2f}) and averaged "
+                     f"{usual} of it. In the last {recent} months it was {now}, about {ils(abs(excess))} "
+                     f"{'more' if more else 'less'} than the usual ratio would give."),
+            check=L("לבדוק אם השתנו מחירי ספקים, תמהיל המוצרים או סיווג התנועות בין שני הכרטיסים.",
+                    "Check for changed supplier prices, a different product mix, or entries classified "
+                    "differently between the two accounts."),
             amount=abs(excess),
             periods=[period_label(p) for p in recent_periods],
-            evidence=evidence(f"% מ{x_acc['name']}", ratio_series, highlight=recent_periods,
-                              reference=mean * 100, reference_label="יחס רגיל"),
+            evidence=evidence(L(f"% מ{x_name}", f"% of {x_name}"), ratio_series, highlight=recent_periods,
+                              reference=mean * 100, reference_label=L("יחס רגיל", "Usual ratio")),
             details={"driver": x_acc["code"], "driver_name": x_acc["name"], "correlation": round(corr, 2),
                      "ratio_hist": round(mean, 4), "ratio_recent": round(float(ratio_recent.mean()), 4),
                      "score": round(float(score), 1)},

@@ -17,10 +17,12 @@ import io
 import pandas as pd
 
 from .analysis.common import ils, period_label
+from .i18n import L, lang
 from .model import ACCRUAL, BANK, CLEARING, EQUITY, PNL_KINDS, natural_sign
 
 OK, EXPLAIN, ISSUE = "ok", "explain", "issue"
-STATUS_LABEL = {OK: "תקין", EXPLAIN: "נדרש הסבר", ISSUE: "לטיפול"}
+def status_label(status: str) -> str:
+    return {OK: L("תקין", "OK"), EXPLAIN: L("נדרש הסבר", "Explain"), ISSUE: L("לטיפול", "Action")}[status]
 _RANK = {OK: 0, EXPLAIN: 1, ISSUE: 2}
 
 
@@ -55,21 +57,23 @@ def build_review(ledger: pd.DataFrame, findings: list[dict], months: int = 6,
             elif f["kind"] == "recurring":
                 flag(EXPLAIN, f["title"].split(": ", 1)[-1])
         if group == CLEARING and abs(last) >= min_amount:
-            flag(EXPLAIN, f"חשבון מעבר עם יתרה של {ils(last)} בסוף החודש")
+            flag(EXPLAIN, L(f"חשבון מעבר עם יתרה של {ils(last)} בסוף החודש",
+                             f"Clearing account holds {ils(last)} at month end"))
         if last <= -min_amount and group != CLEARING:
-            flag(EXPLAIN, f"יתרה בסימן הפוך ({'זכות' if sign > 0 else 'חובה'})")
+            flag(EXPLAIN, L(f"יתרה בסימן הפוך ({'זכות' if sign > 0 else 'חובה'})",
+                             f"Balance on the wrong side ({'credit' if sign > 0 else 'debit'})"))
         if kind == EQUITY and abs(change) >= min_amount:
-            flag(EXPLAIN, f"תנועה בהון של {ils(change)} החודש")
+            flag(EXPLAIN, L(f"תנועה בהון של {ils(change)} החודש", f"Equity moved by {ils(change)} this month"))
         elif group not in (BANK, ACCRUAL) and abs(change) >= max(flux_amount, flux_share * abs(prev)):
             share = f" ({change / prev * 100:+.0f}%)" if prev else ""
-            flag(EXPLAIN, f"שינוי של {ils(change)}{share} מהחודש הקודם")
+            flag(EXPLAIN, L(f"שינוי של {ils(change)}{share} מהחודש הקודם", f"Changed by {ils(change)}{share} from last month"))
         if group == BANK:
-            notes.append("להתאים מול דף הבנק")
+            notes.append(L("להתאים מול דף הבנק", "Reconcile with the bank statement"))
 
         rows.append({
             "account": account, "name": name, "kind": kind, "group": group,
             "balances": {period_label(p): round(float(bal.get(p, 0.0)), 2) for p in shown},
-            "change": round(change, 2), "status": status, "status_label": STATUS_LABEL[status],
+            "change": round(change, 2), "status": status, "status_label": status_label(status),
             "notes": notes,
         })
     rows.sort(key=lambda r: (-_RANK[r["status"]], r["account"]))
@@ -87,13 +91,14 @@ def review_to_xlsx(ledger: pd.DataFrame, review: dict, company: str | None = Non
     periods = sorted(bs["period"].unique())
     wb = Workbook()
     ws = wb.active
-    ws.title = "סקירת מאזן"
-    ws.sheet_view.rightToLeft = True
-    title = f"סקירת מאזן {period_label(periods[-1])}" + (f" · {company}" if company else "")
+    ws.title = L("סקירת מאזן", "Balance sheet review")
+    ws.sheet_view.rightToLeft = lang() == "he"
+    title = L("סקירת מאזן", "Balance sheet review") + f" {period_label(periods[-1])}" + (f" · {company}" if company else "")
     ws.append([title])
     ws["A1"].font = Font(bold=True, size=14)
-    header = ["כרטיס", "שם כרטיס"] + [period_label(p) for p in periods] + \
-             ["שינוי מהחודש הקודם", "סטטוס", "ממצאים", "הסבר", "נבדק על ידי"]
+    header = [L("כרטיס", "Account"), L("שם כרטיס", "Name")] + [period_label(p) for p in periods] + \
+             [L("שינוי מהחודש הקודם", "Change from last month"), L("סטטוס", "Status"), L("ממצאים", "Findings"),
+              L("הסבר", "Explanation"), L("נבדק על ידי", "Reviewed by")]
     ws.append([])
     ws.append(header)
     for cell in ws[3]:

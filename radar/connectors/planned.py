@@ -26,6 +26,7 @@ class PriorityConnector(_Planned):
         display_name="Priority",
         status="planned",
         description="חיבור ישיר דרך ה-REST API של Priority.",
+        display_name_en="Priority", description_en="Direct connection through Priority's REST API.",
         settings=["server_url", "company", "username", "api_key"],
     )
 
@@ -36,6 +37,7 @@ class HashavshevetConnector(_Planned):
         display_name="חשבשבת",
         status="planned",
         description="חיבור לחשבשבת (Hashavshevet / H-Web).",
+        display_name_en="Hashavshevet", description_en="Connection to Hashavshevet / H-Web.",
         settings=["server_url", "company", "username", "api_key"],
     )
 
@@ -46,5 +48,6 @@ class SapB1Connector(_Planned):
         display_name="SAP Business One",
         status="planned",
         description="חיבור דרך ה-Service Layer של SAP Business One.",
+        display_name_en="SAP Business One", description_en="Connection through the SAP Business One Service Layer.",
         settings=["service_layer_url", "company_db", "username", "password"],
     )

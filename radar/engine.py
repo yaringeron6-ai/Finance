@@ -13,7 +13,8 @@ from .analysis.recurring import find_recurring
 from .analysis.relations import find_relations
 from .analysis.stale import find_stale
 from .analysis.trends import find_trends
-from .model import ALERT, HISTORICAL, OPEN_ITEM_GROUPS, Finding
+from .i18n import use_lang
+from .model import OPEN_ITEM_GROUPS, Finding
 from .review import build_review
 
 # When one account triggers several alerts, keep the one that explains the most.
@@ -38,8 +39,14 @@ def _dedupe_alerts(alerts: list[Finding]) -> list[Finding]:
 
 
 def analyze(ledger: pd.DataFrame, settings: Settings | None = None, company: str | None = None,
-            warnings: list[str] | None = None, lines: pd.DataFrame | None = None) -> dict:
-    s = settings or Settings()
+            warnings: list[str] | None = None, lines: pd.DataFrame | None = None, lang: str = "he") -> dict:
+    with use_lang(lang):
+        report = _analyze(ledger, settings or Settings(), company, warnings, lines)
+    report["lang"] = lang
+    return report
+
+
+def _analyze(ledger, s: Settings, company, warnings, lines) -> dict:
     stale = find_stale(ledger, min_months=s.stale_months, min_amount=s.min_amount)
     items = open_items(lines) if lines is not None else pd.DataFrame()
     aging_rows = aging(items, ledger)
@@ -83,5 +90,5 @@ def analyze(ledger: pd.DataFrame, settings: Settings | None = None, company: str
         "aging": aging_rows,
         "relationships": sorted(relationships, key=lambda r: -r["correlation"]),
         "warnings": warnings or [],
-        "sections": {HISTORICAL: "סריקה היסטורית", ALERT: "התראות"},
+        
     }

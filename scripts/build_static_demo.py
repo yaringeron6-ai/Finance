@@ -1,6 +1,6 @@
-"""Build a single self-contained HTML page of the demo report (no server needed).
+"""Build a single self-contained HTML page of the demo (no server needed), in Hebrew and English.
 
-The page is the web app's own UI with the demo results embedded, so it can be
+The page is the web app's own UI with both demo reports embedded, so it can be
 shared or viewed anywhere. Uploading a file still needs the real app.
 
     python scripts/build_static_demo.py out.html
@@ -16,42 +16,27 @@ sys.path.insert(0, str(ROOT))
 
 from radar.connectors import REGISTRY  # noqa: E402
 from radar.engine import Settings, analyze  # noqa: E402
-from radar.synthetic import COMPANY_NAME, DEMO_TARGETS, demo_transactions  # noqa: E402
+from radar.synthetic import COMPANY_NAME, COMPANY_NAME_EN, DEMO_TARGETS, demo_transactions  # noqa: E402
 from radar.transactions import normalize_transactions  # noqa: E402
+
+
+def report(lang: str) -> dict:
+    result = normalize_transactions(demo_transactions(lang=lang))
+    company = COMPANY_NAME_EN if lang == "en" else COMPANY_NAME
+    return analyze(result.ledger, Settings(targets=DEMO_TARGETS), company=company,
+                   warnings=result.warnings, lines=result.lines, lang=lang)
 
 
 def build(out: Path) -> None:
     html = (ROOT / "radar/web/static/index.html").read_text(encoding="utf-8")
-    result = normalize_transactions(demo_transactions())
-    report = analyze(result.ledger, Settings(targets=DEMO_TARGETS), company=COMPANY_NAME,
-                     warnings=result.warnings, lines=result.lines)
-    connectors = [vars(c.info) for c in REGISTRY]
-
-    style = re.search(r"<style>.*?</style>", html, re.S).group(0)
+    head = re.search(r"<head>(.*)</head>", html, re.S).group(1)
     body = re.search(r"<body>(.*)</body>", html, re.S).group(1)
-
-    # The upload card becomes a note: this page is the demo only.
-    body = re.sub(
-        r'<section class="card upload">.*?</section>',
-        '<section class="card upload"><div class="warn">זו גרסת תצוגה עם כרטסת דמו של חברה בדויה. '
-        'העלאת כרטסת או מאזן בוחן אמיתיים, והורדת הסקירה ל-Excel, עובדות באפליקציה המותקנת.</div>'
-        '<div class="row"><span class="muted">מקורות נתונים:</span><div class="chips" id="connectors"></div></div>'
-        '<div id="error" class="error hidden"></div><input type="file" id="file" hidden>'
-        '<input type="file" id="targets" hidden><button id="run" hidden></button>'
-        '<button id="demo" hidden></button><div id="drop" hidden></div><span id="fileLabel" hidden></span></section>',
-        body, flags=re.S,
-    )
-    data = (f"const DEMO_REPORT = {json.dumps(report, ensure_ascii=False)};\n"
-            f"const CONNECTORS = {json.dumps(connectors, ensure_ascii=False)};\n")
-    body = body.replace("<script>", "<script>\n" + data, 1)
-    body = body.replace('$("results").scrollIntoView({ behavior: "smooth", block: "start" });', "")
-    body = re.sub(r'fetch\("/api/connectors"\)\.then\(\(r\) => r\.json\(\)\)\.then\(\(list\) => \{',
-                  "((list) => {", body)
-    body = body.replace("`).join(\"\");\n});\n</script>", "`).join(\"\");\n})(CONNECTORS);\n"
-                        "render(DEMO_REPORT);\n</script>")
-    page = (f'<title>מכ"ם פיננסי</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n'
-            f'{style}\n<div dir="rtl" lang="he">{body}</div>\n')
-    out.write_text(page, encoding="utf-8")
+    head = re.sub(r'<meta (charset|name="viewport")[^>]*>\n?', "", head)
+    data = {"reports": {"he": report("he"), "en": report("en")},
+            "connectors": [vars(c.info) for c in REGISTRY]}
+    inject = f"<script>window.HF_STATIC = {json.dumps(data, ensure_ascii=False)};</script>\n"
+    body = body.replace("<script>", inject + "<script>", 1)
+    out.write_text(head.strip() + "\n" + body, encoding="utf-8")
 
 
 if __name__ == "__main__":

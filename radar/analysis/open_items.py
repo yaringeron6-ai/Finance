@@ -12,13 +12,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ..i18n import L
 from ..model import (
     ADVANCE, CLEARING, CUSTOMER, HISTORICAL, OPEN_ITEM_GROUPS, PROVISION, SUPPLIER, Finding,
 )
 from .common import evidence, ils, period_label
 
 AGING_BUCKETS = [(0, 30, "0–30"), (31, 60, "31–60"), (61, 90, "61–90"),
-                 (91, 180, "91–180"), (181, 365, "181–365"), (366, 10**6, "מעל שנה")]
+                 (91, 180, "91–180"), (181, 365, "181–365"), (366, 10**6, "365+")]
 
 
 def _consume(open_amt: np.ndarray, i: int, j: int) -> None:
@@ -108,7 +109,7 @@ def aging(items: pd.DataFrame, ledger: pd.DataFrame) -> list[dict]:
             buckets[label] = round(float(sel["open"].sum() * sign), 2)
         rows.append({"account": account, "name": g["name"].iloc[0], "group": g["group"].iloc[0],
                      "total": round(float(g["open"].sum() * sign), 2), "buckets": buckets})
-    return sorted(rows, key=lambda r: -abs(r["buckets"]["מעל שנה"]))
+    return sorted(rows, key=lambda r: -abs(r["buckets"]["365+"]))
 
 
 def _item_dict(row) -> dict:
@@ -132,23 +133,31 @@ def find_old_items(items: pd.DataFrame, ledger: pd.DataFrame, min_days: int = 36
         g = g.reindex(g["open"].abs().sort_values(ascending=False).index)
         oldest = g["date"].min()
         n = len(g)
-        what = {CUSTOMER: "חשבוניות לקוח", SUPPLIER: "חשבוניות ספק", ADVANCE: "מקדמות",
-                CLEARING: "רישומים", PROVISION: "רישומי הפרשה"}.get(group, "רישומים")
-        count_text = "פריט אחד" if n == 1 else f"{n} פריטים"
+        what = {CUSTOMER: L("חשבוניות לקוח", "customer invoices"), SUPPLIER: L("חשבוניות ספק", "supplier invoices"),
+                ADVANCE: L("מקדמות", "advances"), CLEARING: L("רישומים", "entries"),
+                PROVISION: L("רישומי הפרשה", "provision entries")}.get(group, L("רישומים", "entries"))
+        count_text = L("פריט אחד", "1 item") if n == 1 else L(f"{n} פריטים", f"{n} items")
         top = g.iloc[0]
         top_text = f"{top['description'] or top['reference']} ({top['date'].strftime('%d/%m/%Y')}, {ils(abs(top['open']))})"
         if n == 1:
-            reason = f"פריט אחד פתוח יותר משנה: {top_text}."
+            reason = L(f"פריט אחד פתוח יותר משנה: {top_text}.", f"One item has been open for over a year: {top_text}.")
         else:
-            reason = (f"{n} פריטים ({what}) פתוחים יותר משנה, בסך {ils(abs(total))}. "
-                      f"הוותיק ביותר מ-{oldest.strftime('%m/%Y')}. הגדול ביותר: {top_text}.")
+            reason = L(f"{n} פריטים ({what}) פתוחים יותר משנה, בסך {ils(abs(total))}. "
+                       f"הוותיק ביותר מ-{oldest.strftime('%m/%Y')}. הגדול ביותר: {top_text}.",
+                       f"{n} {what} have been open for over a year, {ils(abs(total))} in total. "
+                       f"The oldest is from {oldest.strftime('%m/%Y')}. The largest: {top_text}.")
         check = {
-            CUSTOMER: "לבדוק מול הלקוח אם החשבונית שולמה ולא הותאמה, או שצריך לטפל בגבייה.",
-            SUPPLIER: "לבדוק מול כרטסת הספק אם החשבונית שולמה ולא הותאמה, או שהיא שגויה.",
-            ADVANCE: "לבדוק מול כל ספק אם התקבלה חשבונית שלא נרשמה כנגד המקדמה.",
-            CLEARING: "לאתר לאיזה כרטיס היה אמור לעבור כל רישום ולהשלים את ההעברה.",
-            PROVISION: "לבדוק עם הגורם המטפל אם ההפרשה עדיין נדרשת ובאיזה סכום.",
-        }.get(group, "לבדוק את הרישומים הפתוחים.")
+            CUSTOMER: L("לבדוק מול הלקוח אם החשבונית שולמה ולא הותאמה, או שצריך לטפל בגבייה.",
+                        "Check with the customer whether it was paid and not matched, or needs collecting."),
+            SUPPLIER: L("לבדוק מול כרטסת הספק אם החשבונית שולמה ולא הותאמה, או שהיא שגויה.",
+                        "Check against the supplier's statement whether it was paid and not matched, or is wrong."),
+            ADVANCE: L("לבדוק מול כל ספק אם התקבלה חשבונית שלא נרשמה כנגד המקדמה.",
+                       "Check with each supplier whether an invoice arrived that was never set against the advance."),
+            CLEARING: L("לאתר לאיזה כרטיס היה אמור לעבור כל רישום ולהשלים את ההעברה.",
+                        "Find the account each entry should have gone to and complete the transfer."),
+            PROVISION: L("לבדוק עם הגורם המטפל אם ההפרשה עדיין נדרשת ובאיזה סכום.",
+                         "Check with whoever owns it whether the provision is still needed, and at what amount."),
+        }.get(group, L("לבדוק את הרישומים הפתוחים.", "Review the open entries."))
         acc_ledger = ledger[ledger["account"] == account].set_index("period")["balance"]
         sign = -1 if g["kind"].iloc[0] in ("liability", "equity", "revenue") else 1
         findings.append(Finding(
@@ -156,12 +165,13 @@ def find_old_items(items: pd.DataFrame, ledger: pd.DataFrame, min_days: int = 36
             kind="old_items",
             account=account,
             account_name=name,
-            title=f"{name}: {ils(abs(total))} פתוחים מעל שנה ({count_text})",
+            title=L(f"{name}: {ils(abs(total))} פתוחים מעל שנה ({count_text})",
+                    f"{name}: {ils(abs(total))} open for over a year ({count_text})"),
             reason=reason,
             check=check,
             amount=abs(total),
             periods=sorted({period_label(d.to_period('M')) for d in g["date"]}),
-            evidence=evidence("יתרת סוף חודש", acc_ledger * sign,
+            evidence=evidence(L("יתרת סוף חודש", "Month-end balance"), acc_ledger * sign,
                               highlight=sorted({d.to_period("M") for d in g["date"]})),
             details={"items": [_item_dict(r) for _, r in g.head(20).iterrows()], "count": n,
                      "oldest": oldest.strftime("%d/%m/%Y")},

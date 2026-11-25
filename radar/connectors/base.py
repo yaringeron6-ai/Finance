@@ -24,6 +24,8 @@ class ConnectorInfo:
     status: str                       # "available" | "planned"
     description: str
     settings: list[str] = field(default_factory=list)  # what the user must provide
+    display_name_en: str = ""
+    description_en: str = ""
 
 
 class Connector(ABC):

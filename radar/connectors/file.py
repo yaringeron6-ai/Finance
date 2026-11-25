@@ -15,6 +15,8 @@ class FileConnector(Connector):
         status="available",
         description="כרטסת או מאזן בוחן חודשי, מכל תוכנת הנהלת חשבונות.",
         settings=["file"],
+        display_name_en="Excel / CSV file",
+        description_en="Ledger lines or a monthly trial balance from any accounting system.",
     )
 
     def __init__(self, data: bytes, filename: str, mapping: dict[str, str] | None = None):

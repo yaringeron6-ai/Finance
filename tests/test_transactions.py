@@ -57,7 +57,7 @@ def test_open_items_name_the_stuck_lines(result):
 def test_aging_and_review(result):
     rep = analyze(result.ledger, Settings(targets=DEMO_TARGETS), lines=result.lines)
     customers = next(a for a in rep["aging"] if a["account"] == "1200")
-    assert customers["buckets"]["מעל שנה"] == pytest.approx(42_120)
+    assert customers["buckets"]["365+"] == pytest.approx(42_120)
     status = {r["account"]: r["status"] for r in rep["review"]["rows"]}
     assert status["1100"] == "ok" and status["2300"] == "ok" and status["3000"] == "ok"
     assert all(status[a] == "issue" for a in ("1200", "1300", "2200", "2400"))

@@ -3,14 +3,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ..i18n import HE_MONTHS, lang  # noqa: F401  (HE_MONTHS re-exported)
 from ..model import Evidence, SeriesPoint, natural_sign
-
-HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
-             "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"]
 
 
 def ils(value: float) -> str:
-    return f"{abs(value):,.0f} ₪" if value >= 0 else f"-{abs(value):,.0f} ₪"
+    sign = "-" if value < 0 else ""
+    if lang() == "en":
+        return f"{sign}₪{abs(value):,.0f}"
+    return f"{sign}{abs(value):,.0f} ₪"
 
 
 def pct(value: float) -> str:

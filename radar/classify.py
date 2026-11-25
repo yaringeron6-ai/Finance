@@ -35,9 +35,9 @@ _KIND_RULES: list[tuple[str, str]] = [
     (ASSET, r"מקדמ\S*\s+(ל-?)?ספק|advances? to suppliers?|prepaid"),
     (LIABILITY, r"מקדמ\S*\s+מ?לקוח|customer advances?"),
     (EQUITY, r"הון|עודפים|יתרת רווח|equity|retained|capital"),
-    (LIABILITY, r"ספקים|זכאים|הפרש|מע\"?מ עסקאות|הלוואה|אשראי|suppliers|payable|provision|accrued|loan"),
+    (LIABILITY, r"ספקים|זכאים|הפרש|מע\"?מ עסקאות|הלוואה|אשראי|\bsuppliers?\b|payable|provision|accru|loan"),
     (EXPENSE, r"הוצאות|הוצאה|שכר|שכירות|פרסום|שיווק|אחזקה|ביטוח|עמלות|פחת|ריבית|"
-              r"expense|salary|wages|rent|marketing|maintenance|insurance|fees|depreciation|interest"),
+              r"\b(expense|salar|wages|rent|marketing|advertising|maintenance|repairs|insurance|fees|depreciation|interest)"),
     (ASSET, r"בנק|קופה|לקוחות|חייבים|מקדמ|מלאי|רכוש|ציוד|מעבר|ביניים|לבירור|השעיה|"
             r"bank|cash|customers|receivable|advance|prepaid|inventory|asset|equipment|clearing|suspense"),
 ]

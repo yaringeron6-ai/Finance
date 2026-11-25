@@ -1,7 +1,7 @@
 [project]
-name = "finance-radar"
+name = "hello-fin"
 version = "0.1.0"
-description = "Financial radar for controllers: stale balances, recurring gaps, trends, anomalies and broken relationships in trial balances"
+description = "Hello Fin: month-end review for controllers: stale balances, recurring gaps, trends, anomalies and broken relationships in trial balances"
 requires-python = ">=3.11"
 dependencies = [
     "pandas>=2.2",

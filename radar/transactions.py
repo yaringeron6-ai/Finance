@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from .classify import infer_group, infer_kind, parse_group, parse_kind
+from .i18n import L
 from .model import LEDGER_COLUMNS, PNL_KINDS
 from .normalize import InputError, NormalizeResult, _clean_header, _map_columns, to_number
 
@@ -70,9 +71,10 @@ def normalize_transactions(raw: pd.DataFrame, mapping: dict[str, str] | None = N
     cols.pop("period", None)
     date_col = (mapping or {}).get("date") or _find(raw, "date")
     if "account" not in cols:
-        raise InputError("לא נמצאה עמודת מספר כרטיס (למשל 'כרטיס' או 'account').")
+        raise InputError(L("לא נמצאה עמודת מספר כרטיס (למשל 'כרטיס' או 'account').",
+                           "No account column found (for example 'account' or 'כרטיס')."))
     if date_col is None:
-        raise InputError("לא נמצאה עמודת תאריך בכרטסת.")
+        raise InputError(L("לא נמצאה עמודת תאריך בכרטסת.", "No date column found in the ledger lines."))
 
     lines = pd.DataFrame({"account": raw[cols["account"]].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)})
     lines["name"] = raw[cols["name"]].astype(str).str.strip() if "name" in cols else lines["account"]
@@ -86,17 +88,19 @@ def normalize_transactions(raw: pd.DataFrame, mapping: dict[str, str] | None = N
     elif "movement" in cols:
         lines["amount"] = raw[cols["movement"]].map(to_number)
     else:
-        raise InputError("בכרטסת צריכות להיות עמודות 'חובה' ו'זכות' (או עמודת 'סכום').")
+        raise InputError(L("בכרטסת צריכות להיות עמודות 'חובה' ו'זכות' (או עמודת 'סכום').",
+                           "Ledger lines need 'debit' and 'credit' columns (or an 'amount' column)."))
     lines["kind_given"] = raw[cols["kind"]].map(parse_kind).values if "kind" in cols else None
     lines["group_given"] = raw[cols["group"]].map(parse_group).values if "group" in cols else None
 
     bad = lines["date"].isna() | lines["account"].isin(["", "nan"])
     if bad.any():
         # Subtotal rows ("סה"כ לכרטיס") and blank lines land here.
-        warnings.append(f"{int(bad.sum())} שורות בלי תאריך או כרטיס דולגו (למשל שורות סיכום).")
+        warnings.append(L(f"{int(bad.sum())} שורות בלי תאריך או כרטיס דולגו (למשל שורות סיכום).",
+                          f"Skipped {int(bad.sum())} rows without a date or account (such as subtotal rows)."))
     lines = lines[~bad & lines["amount"].notna()].copy()
     if lines.empty:
-        raise InputError("לא נמצאו שורות תנועה תקינות בכרטסת.")
+        raise InputError(L("לא נמצאו שורות תנועה תקינות בכרטסת.", "No valid ledger lines found."))
 
     meta = lines.groupby("account").agg(name=("name", "first"), kind_given=("kind_given", "first"),
                                         group_given=("group_given", "first"))
@@ -113,7 +117,8 @@ def normalize_transactions(raw: pd.DataFrame, mapping: dict[str, str] | None = N
 
     periods = pd.period_range(lines["period"].min(), lines["period"].max(), freq="M")
     if len(periods) < 6:
-        raise InputError("צריך לפחות 6 חודשים של תנועות כדי לזהות מגמות.")
+        raise InputError(L("צריך לפחות 6 חודשים של תנועות כדי לזהות מגמות.",
+                           "At least 6 months of entries are needed to find trends."))
     monthly = lines.groupby(["account", "period"])["amount"].sum()
     pieces = []
     years = np.array([p.year for p in periods])
@@ -130,7 +135,8 @@ def normalize_transactions(raw: pd.DataFrame, mapping: dict[str, str] | None = N
         }))
     ledger = pd.concat(pieces, ignore_index=True)[LEDGER_COLUMNS]
     if not lines["description"].str.contains("פתיחה|opening", case=False, regex=True).any():
-        warnings.append("לא זוהו שורות יתרת פתיחה בכרטסת: יתרות מאזניות חושבו מתחילת הקובץ.")
+        warnings.append(L("לא זוהו שורות יתרת פתיחה בכרטסת: יתרות מאזניות חושבו מתחילת הקובץ.",
+                          "No opening-balance lines found: balance-sheet balances start from the first line in the file."))
     return TransactionsResult(ledger=ledger, warnings=warnings, lines=lines)
 
 

@@ -10,6 +10,7 @@ import math
 
 import numpy as np
 
+from ..i18n import L
 from ..model import ALERT, COGS, EXPENSE, REVENUE, Finding
 from .common import accounts, evidence, ils, period_label
 
@@ -55,26 +56,42 @@ def find_trends(ledger, targets: dict[str, float] | None = None, min_run: int = 
         if at_stake < min_amount:
             continue
 
-        verb = "עלה" if rising else "ירד"
-        reason = (f"{verb} {run} חודשים ברציפות, מ-{ils(values[start])} ל-{ils(last)}. "
-                  f"זה {abs(change) * 100:.0f}% {'מעל ה' if rising else 'מתחת ל'}רמה הרגילה של השנה שקדמה ({ils(baseline)}).")
+        pct = f"{abs(change) * 100:.0f}%"
+        if rising:
+            reason = L(f"עלה {run} חודשים ברציפות, מ-{ils(values[start])} ל-{ils(last)}. "
+                       f"זה {pct} מעל הרמה הרגילה של השנה שקדמה ({ils(baseline)}).",
+                       f"Up {run} months in a row, from {ils(values[start])} to {ils(last)}. "
+                       f"That is {pct} above the usual level of the year before ({ils(baseline)}).")
+        else:
+            reason = L(f"ירד {run} חודשים ברציפות, מ-{ils(values[start])} ל-{ils(last)}. "
+                       f"זה {pct} מתחת לרמה הרגילה של השנה שקדמה ({ils(baseline)}).",
+                       f"Down {run} months in a row, from {ils(values[start])} to {ils(last)}. "
+                       f"That is {pct} below the usual level of the year before ({ils(baseline)}).")
         target = targets.get(acc["code"])
-        reference, reference_label = baseline, "רמה רגילה"
+        reference, reference_label = baseline, L("רמה רגילה", "Usual level")
         details = {"run": run, "baseline": round(baseline, 2), "slope": round(slope, 2),
                    "projected": [round(p, 2) for p in projected]}
         if target:
-            reference, reference_label = target, "יעד חודשי"
+            reference, reference_label = target, L("יעד חודשי", "Monthly target")
             crossed = last >= target if rising else last <= target
             if crossed:
-                reason += f" הכרטיס כבר {'מעל ה' if rising else 'מתחת ל'}יעד החודשי ({ils(target)})."
+                reason += L(f" הכרטיס כבר {'מעל ה' if rising else 'מתחת ל'}יעד החודשי ({ils(target)}).",
+                            f" It is already {'above' if rising else 'below'} its monthly target ({ils(target)}).")
                 details["months_to_target"] = 0
             elif (slope > 0) == rising and slope != 0:
                 months = math.ceil((target - last) / slope)
-                when = "כלומר ברבעון הקרוב" if months <= 3 else f"בעוד כ-{months} חודשים"
-                reason += f" בקצב הזה הוא יחצה את היעד החודשי ({ils(target)}) בעוד {months} חודשים, {when}."
+                soon = months <= 3
+                reason += L(f" בקצב הזה הוא יחצה את היעד החודשי ({ils(target)}) בעוד {months} חודשים"
+                            f"{', כלומר ברבעון הקרוב' if soon else ''}.",
+                            f" At this pace it crosses its monthly target ({ils(target)}) in {months} months"
+                            f"{', within the next quarter' if soon else ''}.")
                 details["months_to_target"] = months
-        reason += f" אם הקצב יימשך, {horizon} החודשים הבאים יעלו כ-{ils(at_stake)} מעבר לרגיל." if rising else \
-            f" אם הקצב יימשך, {horizon} החודשים הבאים יכניסו כ-{ils(at_stake)} פחות מהרגיל."
+        if rising:
+            reason += L(f" אם הקצב יימשך, {horizon} החודשים הבאים יעלו כ-{ils(at_stake)} מעבר לרגיל.",
+                        f" If the pace holds, the next {horizon} months cost about {ils(at_stake)} more than usual.")
+        else:
+            reason += L(f" אם הקצב יימשך, {horizon} החודשים הבאים יכניסו כ-{ils(at_stake)} פחות מהרגיל.",
+                        f" If the pace holds, the next {horizon} months bring in about {ils(at_stake)} less than usual.")
 
         run_periods = list(x.index[start + 1:])
         findings.append(Finding(
@@ -82,13 +99,17 @@ def find_trends(ledger, targets: dict[str, float] | None = None, min_run: int = 
             kind="trend",
             account=acc["code"],
             account_name=acc["name"],
-            title=f"{acc['name']}: {verb} {run} חודשים ברציפות",
+            title=(L(f"{acc['name']}: עלה {run} חודשים ברציפות", f"{acc['name']}: up {run} months in a row") if rising
+                   else L(f"{acc['name']}: ירד {run} חודשים ברציפות", f"{acc['name']}: down {run} months in a row")),
             reason=reason,
-            check=("לבדוק מה מניע את העלייה (ספק, קמפיין, מחיר) והאם היא מתוכננת." if rising
-                   else "לבדוק אם הירידה נובעת מלקוח מסוים, ממחיר או מתזמון חשבוניות."),
+            check=(L("לבדוק מה מניע את העלייה (ספק, קמפיין, מחיר) והאם היא מתוכננת.",
+                     "Find what drives the rise (a supplier, a campaign, a price) and whether it was planned.")
+                   if rising else
+                   L("לבדוק אם הירידה נובעת מלקוח מסוים, ממחיר או מתזמון חשבוניות.",
+                     "Check whether the drop comes from one customer, from pricing or from invoice timing.")),
             amount=at_stake,
             periods=[period_label(p) for p in run_periods],
-            evidence=evidence("סכום חודשי", x.iloc[-18:], highlight=run_periods,
+            evidence=evidence(L("סכום חודשי", "Monthly amount"), x.iloc[-18:], highlight=run_periods,
                               reference=reference, reference_label=reference_label),
             details=details,
         ))

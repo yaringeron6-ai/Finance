@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: finance-radar
+    name: finance-radar  # keeps the existing Render URL
     runtime: python
     plan: free
     buildCommand: pip install .

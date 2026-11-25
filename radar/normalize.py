@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 from .classify import infer_group, infer_kind, parse_group, parse_kind
+from .i18n import L
 from .model import LEDGER_COLUMNS, PNL_KINDS
 
 
@@ -115,7 +116,8 @@ def _map_columns(df: pd.DataFrame, mapping: dict[str, str] | None) -> dict[str, 
     if mapping:
         for std, src in mapping.items():
             if src not in df.columns:
-                raise InputError(f"העמודה '{src}' שהוגדרה עבור '{std}' לא נמצאה בקובץ.")
+                raise InputError(L(f"העמודה '{src}' שהוגדרה עבור '{std}' לא נמצאה בקובץ.",
+                                   f"Column '{src}' mapped to '{std}' is not in the file."))
             found[std] = src
     synonyms = _clean_synonyms()
     for col in df.columns:
@@ -132,8 +134,10 @@ def _wide_to_long(df: pd.DataFrame, cols: dict[str, str]) -> tuple[pd.DataFrame,
     month_cols = {c: p for c, p in month_cols.items() if p is not None}
     if len(month_cols) < 2:
         raise InputError(
-            "לא זוהתה עמודת חודש. צריך עמודה בשם 'חודש' (פורמט ארוך) "
-            "או עמודה לכל חודש, למשל 01/2024 (פורמט רחב)."
+            L("לא זוהתה עמודת חודש. צריך עמודה בשם 'חודש' (פורמט ארוך) "
+              "או עמודה לכל חודש, למשל 01/2024 (פורמט רחב).",
+              "No month column found. Add a 'month' column (long layout) "
+              "or one column per month, e.g. 01/2024 (wide layout).")
         )
     id_cols = list(cols.values())
     long = df.melt(id_vars=id_cols, value_vars=list(month_cols), var_name="__period", value_name="__movement")
@@ -144,14 +148,15 @@ def _wide_to_long(df: pd.DataFrame, cols: dict[str, str]) -> tuple[pd.DataFrame,
 
 def normalize(raw: pd.DataFrame, mapping: dict[str, str] | None = None) -> NormalizeResult:
     if raw is None or raw.empty:
-        raise InputError("הקובץ ריק.")
+        raise InputError(L("הקובץ ריק.", "The file is empty."))
     raw = raw.dropna(how="all").copy()
     raw.columns = [str(c).strip() for c in raw.columns]
     warnings: list[str] = []
 
     cols = _map_columns(raw, mapping)
     if "account" not in cols:
-        raise InputError("לא נמצאה עמודת מספר כרטיס (למשל 'כרטיס' או 'account').")
+        raise InputError(L("לא נמצאה עמודת מספר כרטיס (למשל 'כרטיס' או 'account').",
+                           "No account column found (for example 'account' or 'כרטיס')."))
     if "period" not in cols:
         raw, cols = _wide_to_long(raw, cols)
 
@@ -161,7 +166,8 @@ def normalize(raw: pd.DataFrame, mapping: dict[str, str] | None = None) -> Norma
     df["period"] = raw[cols["period"]].map(parse_period)
     bad = df["period"].isna() & df["account"].ne("") & df["account"].ne("nan")
     if bad.any():
-        warnings.append(f"{int(bad.sum())} שורות עם חודש לא מזוהה דולגו.")
+        warnings.append(L(f"{int(bad.sum())} שורות עם חודש לא מזוהה דולגו.",
+                          f"Skipped {int(bad.sum())} rows with an unreadable month."))
     df = df[df["period"].notna() & df["account"].ne("") & df["account"].ne("nan")]
     raw = raw.loc[df.index]
 
@@ -169,7 +175,8 @@ def normalize(raw: pd.DataFrame, mapping: dict[str, str] | None = None) -> Norma
     has_dc = "debit" in cols and "credit" in cols
     has_balance = "balance" in cols
     if not (has_movement or has_dc or has_balance):
-        raise InputError("לא נמצאו עמודות סכום: צריך 'תנועה', או 'חובה' ו'זכות', או 'יתרה'.")
+        raise InputError(L("לא נמצאו עמודות סכום: צריך 'תנועה', או 'חובה' ו'זכות', או 'יתרה'.",
+                           "No amount columns found: add 'movement', or 'debit' and 'credit', or 'balance'."))
 
     if has_movement:
         df["movement"] = raw[cols["movement"]].map(to_number)
@@ -195,9 +202,11 @@ def normalize(raw: pd.DataFrame, mapping: dict[str, str] | None = None) -> Norma
 
     periods = pd.period_range(agg["period"].min(), agg["period"].max(), freq="M")
     if len(periods) < 6:
-        raise InputError("צריך לפחות 6 חודשים של נתונים כדי לזהות מגמות.")
+        raise InputError(L("צריך לפחות 6 חודשים של נתונים כדי לזהות מגמות.",
+                           "At least 6 months of data are needed to find trends."))
 
     pieces = []
+    opening_warned = False
     for account, g in agg.groupby("account", sort=True):
         name = g["name"].iloc[0]
         kind = g["kind_given"].dropna().iloc[0] if g["kind_given"].notna().any() else infer_kind(name)
@@ -223,8 +232,11 @@ def normalize(raw: pd.DataFrame, mapping: dict[str, str] | None = None) -> Norma
                 balance = movement.groupby(years).cumsum()
             else:
                 balance = movement.cumsum()
-                if not any("יתרת פתיחה" in w for w in warnings):
-                    warnings.append("לא נמצאה עמודת יתרה: יתרות הכרטיסים המאזניים חושבו מצטבר מאפס (בלי יתרת פתיחה).")
+                if not opening_warned:
+                    opening_warned = True
+                    warnings.append(L("לא נמצאה עמודת יתרה: יתרות הכרטיסים המאזניים חושבו מצטבר מאפס (בלי יתרת פתיחה).",
+                                      "No balance column: balance-sheet balances were summed from zero "
+                                      "(no opening balance)."))
         else:
             balance = balance.ffill().fillna(0.0)
 
@@ -252,5 +264,6 @@ def read_table(data: bytes, filename: str) -> pd.DataFrame:
                 return pd.read_csv(buf, dtype=object, encoding=encoding, sep=None, engine="python")
             except UnicodeDecodeError:
                 continue
-        raise InputError("לא הצלחתי לקרוא את הקידוד של קובץ ה-CSV.")
-    raise InputError("פורמט לא נתמך. אפשר להעלות Excel (xlsx) או CSV.")
+        raise InputError(L("לא הצלחתי לקרוא את הקידוד של קובץ ה-CSV.", "Could not read the CSV file's encoding."))
+    raise InputError(L("פורמט לא נתמך. אפשר להעלות Excel (xlsx) או CSV.",
+                       "Unsupported format. Upload Excel (xlsx) or CSV."))

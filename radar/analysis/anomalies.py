@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..i18n import L
 from ..model import ALERT, PNL_KINDS, Finding
 from .common import accounts, evidence, ils, period_label, robust_scale
 
@@ -29,22 +30,27 @@ def find_anomalies(ledger, recent: int = 3, lookback: int = 12, z: float = 4.0,
         if best is None:
             continue
         t, score, baseline, deviation = best
-        period = x.index[t]
-        change = deviation / baseline if baseline else np.inf
-        direction = "מעל ה" if deviation > 0 else "מתחת ל"
+        period = period_label(x.index[t])
+        change = abs(deviation / baseline * 100) if baseline else float("inf")
+        above = deviation > 0
         findings.append(Finding(
             section=ALERT,
             kind="anomaly",
             account=acc["code"],
             account_name=acc["name"],
-            title=f"{acc['name']}: {period_label(period)} חריג, {ils(values[t])} לעומת {ils(baseline)} בדרך כלל",
-            reason=(f"הסכום ב-{period_label(period)} היה {abs(change) * 100:.0f}% {direction}חציון של "
-                    f"{lookback} החודשים שלפניו, הרבה מעבר לתנודה הרגילה של הכרטיס."),
-            check="לפתוח את תנועות החודש ולבדוק אם זה חיוב חד-פעמי, רישום בכרטיס הלא נכון או שינוי אמיתי.",
+            title=L(f"{acc['name']}: {period} חריג, {ils(values[t])} לעומת {ils(baseline)} בדרך כלל",
+                    f"{acc['name']}: {period} is unusual, {ils(values[t])} against a usual {ils(baseline)}"),
+            reason=L(f"הסכום ב-{period} היה {change:.0f}% {'מעל ה' if above else 'מתחת ל'}חציון של "
+                     f"{lookback} החודשים שלפניו, הרבה מעבר לתנודה הרגילה של הכרטיס.",
+                     f"{period} was {change:.0f}% {'above' if above else 'below'} the median of the "
+                     f"{lookback} months before it, far beyond the account's normal swings."),
+            check=L("לפתוח את תנועות החודש ולבדוק אם זה חיוב חד-פעמי, רישום בכרטיס הלא נכון או שינוי אמיתי.",
+                    "Open the month's entries and see whether it is a one-off charge, a posting to the wrong "
+                    "account, or a real change."),
             amount=abs(deviation),
-            periods=[period_label(period)],
-            evidence=evidence("סכום חודשי", x.iloc[-18:], highlight=[period],
-                              reference=baseline, reference_label="רמה רגילה"),
+            periods=[period],
+            evidence=evidence(L("סכום חודשי", "Monthly amount"), x.iloc[-18:], highlight=[x.index[t]],
+                              reference=baseline, reference_label=L("רמה רגילה", "Usual level")),
             details={"score": round(score, 1), "baseline": round(baseline, 2)},
         ))
     return findings
