@@ -5,14 +5,17 @@ Run locally:  uvicorn radar.web.app:app --reload
 
 from __future__ import annotations
 
+import base64
+import hmac
 import io
+import os
 import uuid
 from collections import OrderedDict
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from ..connectors import REGISTRY, FileConnector
 from ..engine import Settings, analyze
@@ -25,6 +28,29 @@ STATIC = Path(__file__).parent / "static"
 MAX_UPLOAD = 20 * 1024 * 1024
 
 app = FastAPI(title="Finance Radar", docs_url="/api/docs")
+
+
+@app.middleware("http")
+async def require_password(request: Request, call_next):
+    """When APP_PASSWORD is set, every request needs it (any user name, that password)."""
+    password = os.environ.get("APP_PASSWORD")
+    if not password or request.url.path == "/healthz":
+        return await call_next(request)
+    header = request.headers.get("authorization", "")
+    if header.lower().startswith("basic "):
+        try:
+            _, _, given = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+        except (ValueError, UnicodeDecodeError):
+            given = ""
+        if hmac.compare_digest(given.encode(), password.encode()):
+            return await call_next(request)
+    return Response("נדרשת סיסמה", status_code=401, media_type="text/plain; charset=utf-8",
+                    headers={"WWW-Authenticate": 'Basic realm="finance-radar", charset="UTF-8"'})
+
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
 
 # Recent analyses, kept in memory so the review can be downloaded as Excel.
 _RECENT: OrderedDict[str, tuple] = OrderedDict()

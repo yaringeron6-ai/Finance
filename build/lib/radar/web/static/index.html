@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מכ"ם פיננסי</title>
+<style>
+:root {
+  --bg: #f6f5f1; --surface: #ffffff; --surface-2: #f0eee8; --text: #1d1c1a; --muted: #6b6861;
+  --border: #e2dfd6; --accent: #b4532a; --accent-soft: #f6e3d9; --bar: #c9c4b8; --ref: #3d6fa8;
+  --ok: #2f7d4f; --ok-soft: #e3f1e7; --warn-bg: #fff6e0; --warn-text: #7a5a00; --shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161614; --surface: #1f1f1c; --surface-2: #2a2a26; --text: #ecebe6; --muted: #a29f96;
+    --border: #36352f; --accent: #e07a4b; --accent-soft: #3a2519; --bar: #57544b; --ref: #7aa7dc;
+    --ok: #5cb882; --ok-soft: #1c3325; --warn-bg: #352c12; --warn-text: #f0cf6d; --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+    --bg: #161614; --surface: #1f1f1c; --surface-2: #2a2a26; --text: #ecebe6; --muted: #a29f96;
+    --border: #36352f; --accent: #e07a4b; --accent-soft: #3a2519; --bar: #57544b; --ref: #7aa7dc;
+    --ok: #5cb882; --ok-soft: #1c3325; --warn-bg: #352c12; --warn-text: #f0cf6d; --shadow: none;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.6 "Segoe UI", "Assistant", "Rubik", system-ui, -apple-system, sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header h1 { margin: 0; font-size: 28px; letter-spacing: -.01em; }
+header p { margin: 4px 0 0; color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); }
+.upload { margin-top: 20px; display: grid; gap: 14px; }
+.drop { border: 1.5px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; background: var(--surface-2); }
+.drop.over { border-color: var(--accent); }
+.drop strong { display: block; }
+.drop span { color: var(--muted); font-size: 13px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button, .btn { font: inherit; border-radius: 8px; padding: 8px 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+.muted { color: var(--muted); font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 2px 10px; border-radius: 99px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.chip.on { color: var(--ok); border-color: currentColor; background: transparent; }
+.error { background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 10px 14px; }
+.warn { background: var(--warn-bg); color: var(--warn-text); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+.meta { margin: 28px 0 12px; color: var(--muted); }
+.meta b { color: var(--text); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile .label { color: var(--muted); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .sub { color: var(--muted); font-size: 13px; }
+h2 { font-size: 20px; margin: 34px 0 4px; }
+h2 + p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.finding { padding: 0; overflow: hidden; margin-bottom: 10px; }
+.finding summary { list-style: none; cursor: pointer; padding: 14px 18px; display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center; }
+.finding summary::-webkit-details-marker { display: none; }
+.rank { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 13px; color: var(--muted); }
+.ftitle { font-weight: 600; }
+.ftags { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.tag { font-size: 12px; color: var(--muted); }
+.status { font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.amount { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.body { padding: 0 18px 18px 18px; border-top: 1px solid var(--border); }
+.body h4 { margin: 14px 0 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.body p { margin: 0; }
+svg.chart { width: 100%; height: auto; margin-top: 10px; display: block; direction: ltr; }
+svg.chart text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; }
+td.num, th.num { font-variant-numeric: tabular-nums; direction: ltr; text-align: right; }
+footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+.hidden { display: none; }
+.scroll { overflow-x: auto; }
+.review td, .review th { white-space: nowrap; }
+.review td.notes { white-space: normal; min-width: 200px; max-width: 320px; color: var(--muted); font-size: 13px; }
+.pill { font-size: 12px; padding: 1px 9px; border-radius: 99px; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--ok-soft); }
+.pill.explain { color: var(--warn-text); background: var(--warn-bg); }
+.pill.issue { color: var(--accent); background: var(--accent-soft); }
+.headrow { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.items { margin-top: 6px; font-size: 13px; }
+.items td { padding: 6px; }
+.empty { color: var(--muted); padding: 12px 0; }
+@media (max-width: 560px) {
+  .finding summary { grid-template-columns: 1fr auto; }
+  .rank { display: none; }
+  .tile .value { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>מכ"ם פיננסי</h1>
+    <p>מעלים כרטסת או מאזן בוחן חודשי של 12 עד 36 חודשים. המערכת מכינה את סקירת המאזן ומסמנת מה כדאי לבדוק, מהסכום הגדול לקטן.</p>
+  </header>
+
+  <section class="card upload">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+      <strong id="fileLabel">בחירת קובץ כרטסת או מאזן בוחן (Excel או CSV)</strong>
+      <span>כרטסת: כרטיס, שם כרטיס, תאריך, אסמכתא, פרטים, חובה, זכות. מאזן בוחן: כרטיס, שם כרטיס, חודש, חובה, זכות, יתרה. המערכת מזהה לבד את סוג הקובץ.</span>
+    </label>
+    <div class="row">
+      <label class="muted">קובץ יעדים (לא חובה): <input type="file" id="targets" accept=".xlsx,.xls,.csv"></label>
+    </div>
+    <div class="row">
+      <button class="primary" id="run" disabled>נתח את הקובץ</button>
+      <button id="demo">הרץ דמו</button>
+      <a class="btn" href="/api/demo/transactions">כרטסת לדוגמה</a>
+      <a class="btn" href="/api/demo/file">מאזן בוחן לדוגמה</a>
+    </div>
+    <div class="row"><span class="muted">מקורות נתונים:</span><div class="chips" id="connectors"></div></div>
+    <div id="error" class="error hidden"></div>
+  </section>
+
+  <main id="results" class="hidden">
+    <div class="meta" id="meta"></div>
+    <div id="warnings"></div>
+    <div class="tiles" id="tiles"></div>
+
+    <div class="headrow"><h2>סקירת מאזן</h2><a class="btn hidden" id="exportBtn">הורדה ל-Excel</a></div>
+    <p>כל כרטיס מאזני, חודש ליד חודש. מה שמסומן "תקין" לא צריך טיפול. ב-Excel יש עמודות להסבר ולחתימה.</p>
+    <div class="card scroll" id="review"></div>
+
+    <h2>סריקה היסטורית</h2>
+    <p>פערים שנגררים, כמה הם שווים, והאם הם חוזרים באותו חודש כל שנה.</p>
+    <div id="historical"></div>
+
+    <h2>התראות</h2>
+    <p>מה השתנה בחודשים האחרונים: מגמות, חריגות וקשרים בין כרטיסים שנשברו.</p>
+    <div id="alerts"></div>
+
+    <div id="agingBlock" class="hidden">
+      <h2>גיול לקוחות וספקים</h2>
+      <p>היתרה הפתוחה לפי ותק בימים, אחרי התאמת חשבוניות לתשלומים.</p>
+      <div class="card scroll" id="aging"></div>
+    </div>
+
+    <h2>קשרים שזוהו בין כרטיסים</h2>
+    <p>כרטיסים שזזים יחד לאורך זמן. כשהיחס ביניהם משתנה, מופיעה התראה.</p>
+    <div class="card" id="relationships"></div>
+  </main>
+
+  <footer>כל ממצא מסומן "לבדיקה" ולא כטעות. ההכרעה, במיוחד בנושאי מס, נשארת אצל החשב או יועץ המס.</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ils = (v) => (v < 0 ? "-" : "") + Math.abs(Math.round(v)).toLocaleString("en-US") + " ₪";
+const KIND = { stale_balance: "יתרה תקועה", old_items: "פריטים פתוחים", recurring: "דפוס חוזר", trend: "מגמה", anomaly: "חריגה", relation_break: "קשר שנשבר" };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function chart(ev) {
+  const pts = ev.series, n = pts.length;
+  if (!n) return "";
+  const W = 900, H = 200, top = 14, bottom = 26, left = 30, right = 96;
+  const vals = pts.map((p) => p.value).concat(ev.reference != null ? [ev.reference] : []);
+  const max = Math.max(0, ...vals), min = Math.min(0, ...vals);
+  const span = max - min || 1;
+  const y = (v) => top + (max - v) / span * (H - top - bottom);
+  const bw = (W - left - right) / n;
+  const hl = new Set(ev.highlight);
+  // Right-to-left page: time runs from right (oldest) to left (newest).
+  const x = (i) => W - right - (i + 1) * bw;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ev.label)}">`;
+  s += `<line x1="${left}" x2="${W - right}" y1="${y(0)}" y2="${y(0)}" stroke="var(--border)"/>`;
+  pts.forEach((p, i) => {
+    const v = p.value, y0 = y(Math.max(v, 0)), h = Math.abs(y(v) - y(0));
+    s += `<rect x="${x(i) + bw * 0.15}" y="${y0}" width="${bw * 0.7}" height="${Math.max(h, 1)}" rx="2"
+      fill="${hl.has(p.period) ? "var(--accent)" : "var(--bar)"}"><title>${p.period}: ${ev.label.startsWith("%") ? v.toFixed(1) + "%" : ils(v)}</title></rect>`;
+    const every = Math.ceil(n / 8);
+    if ((n - 1 - i) % every === 0) s += `<text x="${x(i) + bw / 2}" y="${H - 8}" text-anchor="middle">${p.period}</text>`;
+  });
+  if (ev.reference != null) {
+    const ry = y(ev.reference);
+    const lbl = ev.label.startsWith("%") ? ev.reference.toFixed(1) + "%" : ils(ev.reference);
+    s += `<line x1="${left}" x2="${W - right}" y1="${ry}" y2="${ry}" stroke="var(--ref)" stroke-dasharray="5 4" stroke-width="1.5"/>`;
+    s += `<text x="${W - right + 6}" y="${ry - 3}" text-anchor="start" style="fill:var(--ref)">${esc(ev.reference_label || "")}</text>`;
+    s += `<text x="${W - right + 6}" y="${ry + 11}" text-anchor="start" style="fill:var(--ref)">${lbl}</text>`;
+  }
+  return s + "</svg>";
+}
+
+function itemsTable(items) {
+  if (!items || !items.length) return "";
+  return `<h4>הפריטים הפתוחים</h4><div class="scroll"><table class="items"><thead><tr><th>תאריך</th><th>אסמכתא</th><th>פרטים</th><th>סכום</th><th>ימים</th></tr></thead><tbody>${
+    items.map((x) => `<tr><td class="num">${x.date}</td><td>${esc(x.reference)}</td><td>${esc(x.description)}</td><td class="num">${ils(Math.abs(x.amount))}</td><td class="num">${x.age_days}</td></tr>`).join("")
+  }</tbody></table></div>`;
+}
+
+function reviewTable(rv) {
+  // The page shows the last 4 months; the Excel download has every month.
+  rv = { ...rv, periods: rv.periods.slice(-4) };
+  const head = `<tr><th>כרטיס</th>${rv.periods.map((p) => `<th class="num">${p}</th>`).join("")}<th class="num">שינוי</th><th>סטטוס</th><th>ממצאים</th></tr>`;
+  const rows = rv.rows.map((r) => `<tr><td>${esc(r.account)} · ${esc(r.name)}</td>${
+    rv.periods.map((p) => `<td class="num">${Math.round(r.balances[p] ?? 0).toLocaleString("en-US")}</td>`).join("")
+  }<td class="num">${Math.round(r.change).toLocaleString("en-US")}</td><td><span class="pill ${r.status}">${esc(r.status_label)}</span></td><td class="notes">${r.notes.map(esc).join("<br>")}</td></tr>`).join("");
+  return `<table class="review"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+}
+
+function agingTable(rows) {
+  const labels = Object.keys(rows[0].buckets);
+  return `<table><thead><tr><th>כרטיס</th>${labels.map((l) => `<th class="num">${l}</th>`).join("")}<th class="num">סה"כ</th></tr></thead><tbody>${
+    rows.map((r) => `<tr><td>${esc(r.account)} · ${esc(r.name)}</td>${labels.map((l) => `<td class="num">${Math.round(r.buckets[l]).toLocaleString("en-US")}</td>`).join("")}<td class="num">${Math.round(r.total).toLocaleString("en-US")}</td></tr>`).join("")
+  }</tbody></table>`;
+}
+
+function findingCard(f, i) {
+  return `<details class="card finding">
+    <summary>
+      <div class="rank">${i + 1}</div>
+      <div><div class="ftitle">${esc(f.title)}</div>
+        <div class="ftags"><span class="status">${esc(f.status)}</span><span class="tag">${KIND[f.kind] || f.kind} · כרטיס ${esc(f.account)}</span></div></div>
+      <div class="amount">${ils(f.amount)}</div>
+    </summary>
+    <div class="body">
+      <h4>למה זה סומן</h4><p>${esc(f.reason)}</p>
+      <h4>מה לבדוק</h4><p>${esc(f.check)}</p>
+      ${itemsTable(f.details.items)}
+      <h4>${esc(f.evidence.label)}</h4>${chart(f.evidence)}
+    </div>
+  </details>`;
+}
+
+function render(r) {
+  $("results").classList.remove("hidden");
+  $("meta").innerHTML = `${r.company ? `<b>${esc(r.company)}</b> · ` : ""}מ-${r.period_from} עד ${r.period_to} · ${r.months} חודשים · ${r.accounts} כרטיסים`;
+  $("warnings").innerHTML = r.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("");
+  const s = r.summary, c = r.review.counts;
+  $("tiles").innerHTML = `
+    <div class="card tile"><div class="label">כרטיסים מאזניים שצריכים טיפול</div><div class="value">${c.issue + c.explain} מתוך ${c.ok + c.issue + c.explain}</div><div class="sub">${c.issue} לטיפול · ${c.explain} נדרש הסבר</div></div>
+    <div class="card tile"><div class="label">יתרות שנגררות מעל שנה</div><div class="value">${ils(s.stale_total)}</div><div class="sub">${s.stale_count} כרטיסים</div></div>
+    <div class="card tile"><div class="label">דפוסים שחוזרים כל שנה</div><div class="value">${s.recurring_count}</div><div class="sub">אותו חודש, שנה אחרי שנה</div></div>
+    <div class="card tile"><div class="label">התראות מהחודשים האחרונים</div><div class="value">${s.alerts_count}</div><div class="sub">${ils(s.alerts_total)} על הפרק</div></div>`;
+  $("review").innerHTML = reviewTable(r.review);
+  if (r.id) { $("exportBtn").href = `/api/review/${r.id}.xlsx`; $("exportBtn").classList.remove("hidden"); }
+  $("agingBlock").classList.toggle("hidden", !r.aging || !r.aging.length);
+  if (r.aging && r.aging.length) $("aging").innerHTML = agingTable(r.aging);
+  $("historical").innerHTML = r.historical.length ? r.historical.map(findingCard).join("") : `<div class="empty">לא נמצאו פערים שנגררים.</div>`;
+  $("alerts").innerHTML = r.alerts.length ? r.alerts.map(findingCard).join("") : `<div class="empty">אין התראות לחודשים האחרונים.</div>`;
+  $("relationships").innerHTML = r.relationships.length
+    ? `<table><thead><tr><th>כרטיס</th><th>זז יחד עם</th><th>יחס רגיל</th><th>מתאם</th></tr></thead><tbody>${
+        r.relationships.map((x) => `<tr><td>${esc(x.account_name)}</td><td>${esc(x.driver_name)}</td><td class="num">${(x.ratio * 100).toFixed(1)}%</td><td class="num">${x.correlation.toFixed(2)}</td></tr>`).join("")
+      }</tbody></table>`
+    : `<div class="empty">לא נמצאו קשרים יציבים.</div>`;
+  const first = document.querySelector(".finding");
+  if (first) first.open = true;
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function call(url, opts) {
+  $("error").classList.add("hidden");
+  document.body.style.cursor = "progress";
+  try {
+    const res = await fetch(url, opts);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || "משהו השתבש בניתוח.");
+    render(body);
+  } catch (e) {
+    $("error").textContent = e.message;
+    $("error").classList.remove("hidden");
+  } finally {
+    document.body.style.cursor = "";
+  }
+}
+
+const fileInput = $("file");
+function setFile(f) {
+  $("fileLabel").textContent = f ? f.name : "בחירת קובץ מאזן בוחן (Excel או CSV)";
+  $("run").disabled = !f;
+}
+fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault(); drop.classList.remove("over");
+  if (e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; setFile(fileInput.files[0]); }
+});
+$("run").addEventListener("click", () => {
+  const fd = new FormData();
+  fd.append("file", fileInput.files[0]);
+  if ($("targets").files[0]) fd.append("targets", $("targets").files[0]);
+  call("/api/analyze", { method: "POST", body: fd });
+});
+$("demo").addEventListener("click", () => call("/api/demo"));
+fetch("/api/connectors").then((r) => r.json()).then((list) => {
+  $("connectors").innerHTML = list.map((c) =>
+    `<span class="chip ${c.status === "available" ? "on" : ""}" title="${esc(c.description)}">${esc(c.display_name)}${c.status === "available" ? "" : " · בקרוב"}</span>`).join("");
+});
+</script>
+</body>
+</html>

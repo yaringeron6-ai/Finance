@@ -67,3 +67,15 @@ def test_connectors_listed():
     keys = {c["key"]: c["status"] for c in client.get("/api/connectors").json()}
     assert keys["file"] == "available"
     assert keys["priority"] == "planned"
+
+
+def test_password_required_when_set(monkeypatch):
+    import base64
+
+    monkeypatch.setenv("APP_PASSWORD", "s3cret")
+    assert client.get("/").status_code == 401
+    assert client.get("/healthz").status_code == 200
+    good = base64.b64encode(b"user:s3cret").decode()
+    bad = base64.b64encode(b"user:nope").decode()
+    assert client.get("/", headers={"Authorization": f"Basic {good}"}).status_code == 200
+    assert client.get("/", headers={"Authorization": f"Basic {bad}"}).status_code == 401
